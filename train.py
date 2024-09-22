@@ -92,7 +92,6 @@ def train(
         epoch_norm = 0.0
         optimizer.zero_grad()
         
-        weighted_sampler.set_epoch(epoch)
         num_batches = len(train_dataloader) // accumulation_steps
         if rank == 0:
             progress_bar = tqdm(range(num_batches), desc=f"Epoch {epoch+1}/{epochs}", unit="batch")
