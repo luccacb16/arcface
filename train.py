@@ -3,11 +3,12 @@ import torchvision.datasets
 from tqdm import tqdm
 import os
 import wandb
+from collections import Counter
 
 import torch
 import torchvision
 import torch.nn as nn
-from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.amp import GradScaler, autocast
 import wandb.wandb_torch
 
@@ -115,7 +116,6 @@ if __name__ == '__main__':
     num_workers = args.num_workers
     train_dir = args.train_dir
     test_dir = args.test_dir
-    IMAGES_PATH = args.images_path
     CHECKPOINT_PATH = args.checkpoint_path
     compile = args.compile
     USING_WANDB = args.wandb
@@ -140,7 +140,6 @@ if __name__ == '__main__':
         'num_workers': num_workers,
         'train_dir': train_dir,
         'test_dir': test_dir,
-        'images_path': IMAGES_PATH,
         'checkpoint_path': CHECKPOINT_PATH,
         'compile': compile,
         'random_state': random_state,
@@ -161,9 +160,10 @@ if __name__ == '__main__':
     train_dataset = torchvision.datasets.ImageFolder(root=train_dir, transform=aug_transform)
     
     n_classes = len(train_dataset.classes)    
-    class_weights = [1.0 / train_dataset.class_to_idx[class_id] for class_id in train_dataset.classes]
-    sample_weights = [class_weights[i] for i in train_dataset.targets]
-    weighted_sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
+    class_counts = Counter(train_dataset.targets)
+    weights = [1.0 / class_counts[i] if class_counts[i] > 0 else 0 for i in range(len(class_counts))]
+    sample_weights = torch.DoubleTensor([weights[label] for label in train_dataset.targets])
+    weighted_sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
     
     train_dataloader = DataLoader(
         train_dataset, 
@@ -175,12 +175,8 @@ if __name__ == '__main__':
 
     # Test
     test_dataset = torchvision.datasets.ImageFolder(root=test_dir, transform=transform)
-    
-    indices = np.random.permutation(len(test_dataset))[:1024]
-    subset_dataset = Subset(test_dataset, indices)    
-    
     test_dataloader = DataLoader(
-        subset_dataset, 
+        test_dataset, 
         batch_size=batch_size, 
         shuffle=False, 
         pin_memory=True, 

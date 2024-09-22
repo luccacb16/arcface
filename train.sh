@@ -4,9 +4,8 @@ cmd="python3 train.py \
   --epochs 32 \
   --emb_size 512 \
   --num_workers 1 \
-  --train_df ./data/CASIA/train.csv \
-  --test_df ./data/CASIA/test.csv \
-  --images_path ./data/CASIA/casia-faces \
+  --train_dir ./data/CASIA/train \
+  --test_dir ./data/CASIA/test \
   --checkpoint_path checkpoints/ \
   --random_state 42 \
   --lr 1e-1 \
