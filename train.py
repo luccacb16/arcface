@@ -4,10 +4,11 @@ import os
 import wandb
 
 import torch
+import torchvision
 import torch.nn as nn
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.utils.data import DataLoader, DistributedSampler
+from torch.utils.data import DataLoader, DistributedSampler, WeightedRandomSampler
 from torch.amp import GradScaler, autocast
 import wandb.wandb_torch
 
@@ -45,14 +46,16 @@ def train(
     rank,
     world_size,
     model: nn.Module,
-    train_dataloader: DataLoader,
-    test_dataloader: DataLoader,
+    train_dataset: CustomDataset,
+    test_dataset: CustomDataset,
     criterion: nn.Module,
     optimizer: torch.optim.Optimizer,
     scaler: GradScaler,
     scheduler: torch.optim.lr_scheduler,
     accumulation_steps: int,
     epochs: int,
+    batch_size: int,
+    num_workers: int,
     dtype: torch.dtype,
     checkpoint_path: str
 ):
@@ -61,13 +64,37 @@ def train(
     model = model.to(device)
     model = DDP(model, device_ids=[rank])
     
+    class_weights = [1.0 / train_dataset.class_to_idx[class_id] for class_id in train_dataset.classes]
+    sample_weights = [class_weights[i] for i in train_dataset.targets]
+    weighted_sampler = WeightedRandomSampler(
+        weights=sample_weights,
+        num_samples=len(sample_weights),
+        replacement=True
+    )
+    
+    train_dataloader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        pin_memory=True,
+        num_workers=num_workers,
+        sampler=weighted_sampler
+    )
+    test_dataloader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        pin_memory=True,
+        num_workers=num_workers
+    )
+    
     for epoch in range(epochs):
         model.train()
         running_loss = 0.0
         epoch_norm = 0.0
         optimizer.zero_grad()
         
-        train_dataloader.sampler.set_epoch(epoch)
+        weighted_sampler.set_epoch(epoch)
         num_batches = len(train_dataloader) // accumulation_steps
         if rank == 0:
             progress_bar = tqdm(range(num_batches), desc=f"Epoch {epoch+1}/{epochs}", unit="batch")
@@ -142,9 +169,8 @@ if __name__ == '__main__':
     epochs = args.epochs
     emb_size = args.emb_size
     num_workers = args.num_workers
-    TRAIN_DF_PATH = args.train_df
-    TEST_DF_PATH = args.test_df
-    IMAGES_PATH = args.images_path
+    train_dir = args.train_dir
+    test_dir = args.test_dir
     CHECKPOINT_PATH = args.checkpoint_path
     compile = args.compile
     USING_WANDB = args.wandb
@@ -168,9 +194,8 @@ if __name__ == '__main__':
         'epochs': epochs,
         'emb_size': emb_size,
         'num_workers': num_workers,
-        'train_df_path': TRAIN_DF_PATH,
-        'test_df_path': TEST_DF_PATH,
-        'images_path': IMAGES_PATH,
+        'train_dir': train_dir,
+        'test_dir': test_dir,
         'checkpoint_path': CHECKPOINT_PATH,
         'compile': compile,
         'random_state': random_state,
@@ -186,18 +211,10 @@ if __name__ == '__main__':
         wandb.login(key=os.environ['WANDB_API_KEY'])
         wandb.init(project='arcface', config=config)
 
-    # Data
-    train_df = pd.read_csv(TRAIN_DF_PATH)
-    train_df['path'] = train_df['path'].apply(lambda x: os.path.join(IMAGES_PATH, x))
-    n_classes = train_df['id'].nunique()
-    
-    test_df = pd.read_csv(TEST_DF_PATH)
-    test_df['path'] = test_df['path'].apply(lambda x: os.path.join(IMAGES_PATH, x))
-    test_df = test_df.sample(n=1024, random_state=random_state).reset_index(drop=True)
-    
-    # Datasets and Loaders
-    train_dataset = CustomDataset(train_df, transform=aug_transform, dtype=DTYPE)
-    test_dataset = CustomDataset(test_df, transform=transform, dtype=DTYPE)
+    # ImageFolder
+    train_dataset = torchvision.datasets.ImageFolder(train_dir, transform=aug_transform)
+    test_dataset = torchvision.datasets.ImageFolder(test_dir, transform=transform)
+    n_classes = len(train_dataset.classes)
 
     # Loss
     criterion = FocalLoss(gamma=2)
@@ -217,34 +234,23 @@ if __name__ == '__main__':
     print(f'Number of GPUs: {world_size}')
     print(f'Using tensor type: {DTYPE}')
     
-    print(f'\nImages: {len(train_df)} | Identities: {n_classes} | imgs/id: {len(train_df) / n_classes:.2f}\n')
+    print(f'\nImages: {len(train_dataset)} | Identities: {n_classes} | imgs/id: {len(train_dataset) / n_classes:.2f}\n')
     
     torch.multiprocessing.spawn(
         train,
         args=(
             world_size,
             model,
-            DataLoader(
-                train_dataset,
-                batch_size=batch_size,
-                shuffle=False,
-                pin_memory=True,
-                num_workers=num_workers,
-                sampler=DistributedSampler(train_dataset)
-            ),
-            DataLoader(
-                test_dataset,
-                batch_size=batch_size,
-                shuffle=False,
-                pin_memory=True,
-                num_workers=num_workers
-            ),
+            train_dataset,
+            test_dataset,
             criterion,
             optimizer,
             scaler,
             scheduler,
             accumulation_steps,
             epochs,
+            batch_size,
+            num_workers,
             DTYPE,
             CHECKPOINT_PATH
         ),

@@ -63,7 +63,7 @@ def evaluate(model, val_dataloader, criterion, dtype=torch.bfloat16, device='cud
     
     model.eval()
 
-    with autocast(dtype=dtype, device_type=device):
+    with autocast(dtype=dtype, device_type='cuda'):
         with torch.no_grad():
             for data in val_dataloader:
                 inputs, labels = data
@@ -141,9 +141,8 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=32, help='Número de epochs (default: 32)')
     parser.add_argument('--emb_size', type=int, default=512, help='Tamanho do embedding (default: 512)')
     parser.add_argument('--num_workers', type=int, default=1, help='Número de workers para o DataLoader (default: 1)')
-    parser.add_argument('--train_df', type=str, default='./data/CASIA/train.csv', help='Caminho para o CSV de treino (default: ./data/CASIA/train.csv)')
-    parser.add_argument('--test_df', type=str, default='./data/CASIA/test.csv', help='Caminho para o CSV de teste (default: ./data/CASIA/test.csv)')
-    parser.add_argument('--images_path', type=str, default='./data/', help='Caminho para as imagens do dataset (default: ./data/CASIA/casia-faces/)')
+    parser.add_argument('--train_dir', type=str, default='./data/CASIA/train/', help='Caminho para o diretório de treino (default: ./data/CASIA/train.csv)')
+    parser.add_argument('--test_dir', type=str, default='./data/CASIA/test/', help='Caminho para o diretório de teste (default: ./data/CASIA/test.csv)')
     parser.add_argument('--checkpoint_path', type=str, default='./checkpoints/', help='Caminho para salvar os checkpoints (default: ./checkpoints/)')
     parser.add_argument('--compile', action='store_true', help='Se deve compilar o modelo (default: False)')
     parser.add_argument('--wandb', action='store_true', help='Se está rodando com o Weights & Biases (default: False)')
@@ -154,5 +153,6 @@ def parse_args():
     parser.add_argument('--reduction_factor', type=float, default=0.1, help="Fator de redução da taxa de aprendizado (default: 0.1)")
     parser.add_argument('--reduction_epochs', nargs='+', type=int, default=[20, 28], help="Epochs para redução da taxa de aprendizado (default: [20, 28])")
     parser.add_argument('--warmup_epochs', type=int, default=5, help="Epochs para warmup da taxa de aprendizado (default: 5)")
-        
+    parser.add_argument('--world_size', type=int, default=None, help="Número de GPUs para usar (default: None)")
+    
     return parser.parse_args()
