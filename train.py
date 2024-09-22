@@ -2,6 +2,7 @@ import pandas as pd
 from tqdm import tqdm
 import os
 import wandb
+from collections import Counter
 
 import torch
 import torchvision
@@ -64,13 +65,10 @@ def train(
     model = model.to(device)
     model = DDP(model, device_ids=[rank])
     
-    class_weights = [1.0 / train_dataset.class_to_idx[class_id] for class_id in train_dataset.classes]
-    sample_weights = [class_weights[i] for i in train_dataset.targets]
-    weighted_sampler = WeightedRandomSampler(
-        weights=sample_weights,
-        num_samples=len(sample_weights),
-        replacement=True
-    )
+    class_counts = Counter(train_dataset.targets)
+    weights = [1.0 / class_counts[i] if class_counts[i] > 0 else 0 for i in range(len(class_counts))]
+    sample_weights = torch.DoubleTensor([weights[label] for label in train_dataset.targets])
+    weighted_sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
     
     train_dataloader = DataLoader(
         train_dataset,
