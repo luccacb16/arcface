@@ -108,7 +108,7 @@ def train(
             
             if (step + 1) % accumulation_steps == 0:
                 scaler.unscale_(optimizer)
-                epoch_norm += torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
                 
                 scaler.step(optimizer)
                 scaler.update()
@@ -122,11 +122,9 @@ def train(
         if rank == 0:
             progress_bar.close()
         
-        # Reduce loss and norm across all GPUs
+        # Reduce loss
         epoch_loss = torch.tensor(running_loss / len(train_dataloader), device=device)
-        epoch_norm = torch.tensor(epoch_norm / num_batches, device=device)
         epoch_loss = reduce_tensor(epoch_loss, world_size)
-        epoch_norm = reduce_tensor(epoch_norm, world_size)
         
         if rank == 0:
             epoch_accuracy, epoch_precision, epoch_recall, epoch_f1, val_loss = evaluate(model.module, test_dataloader, criterion, dtype=dtype, device=device)
@@ -148,7 +146,7 @@ def train(
                     'lr': optimizer.param_groups[0]['lr']
                 })
             
-            print(f"Epoch [{epoch+1}/{epochs}] | loss: {epoch_loss.item():.6f} | val_loss: {val_loss:.6f} | norm: {epoch_norm.item():.6f} | LR: {optimizer.param_groups[0]['lr']:.2e}")
+            print(f"Epoch [{epoch+1}/{epochs}] | loss: {epoch_loss.item():.6f} | val_loss: {val_loss:.6f} | LR: {optimizer.param_groups[0]['lr']:.2e}")
             print(f"Metrics: accuracy: {epoch_accuracy:.4f} | precision: {epoch_precision:.4f} | recall: {epoch_recall:.4f} | f1: {epoch_f1:.4f}\n")
             model.module.save_checkpoint(checkpoint_path, f'epoch_{epoch+1}.pt')
             if USING_WANDB: 
