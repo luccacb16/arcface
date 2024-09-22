@@ -1,17 +1,19 @@
-import pandas as pd
+import numpy as np
+import torchvision.datasets
 from tqdm import tqdm
 import os
 import wandb
 
 import torch
+import torchvision
 import torch.nn as nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset, WeightedRandomSampler
 from torch.amp import GradScaler, autocast
 import wandb.wandb_torch
 
 from models.arcfaceresnet50 import ArcFaceResNet50
 
-from utils import parse_args, transform, aug_transform, CustomDataset, evaluate, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed
+from utils import parse_args, transform, aug_transform, evaluate, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed
 
 torch.set_float32_matmul_precision('high')
 torch.backends.cudnn.benchmark = True
@@ -111,8 +113,8 @@ if __name__ == '__main__':
     epochs = args.epochs
     emb_size = args.emb_size
     num_workers = args.num_workers
-    TRAIN_DF_PATH = args.train_df
-    TEST_DF_PATH = args.test_df
+    train_dir = args.train_dir
+    test_dir = args.test_dir
     IMAGES_PATH = args.images_path
     CHECKPOINT_PATH = args.checkpoint_path
     compile = args.compile
@@ -136,8 +138,8 @@ if __name__ == '__main__':
         'epochs': epochs,
         'emb_size': emb_size,
         'num_workers': num_workers,
-        'train_df_path': TRAIN_DF_PATH,
-        'test_df_path': TEST_DF_PATH,
+        'train_dir': train_dir,
+        'test_dir': test_dir,
         'images_path': IMAGES_PATH,
         'checkpoint_path': CHECKPOINT_PATH,
         'compile': compile,
@@ -155,22 +157,35 @@ if __name__ == '__main__':
 
     # ------
     
-    # Dados
-    train_df = pd.read_csv(TRAIN_DF_PATH)
-    train_df['path'] = train_df['path'].apply(lambda x: os.path.join(IMAGES_PATH, x))
-    n_classes = train_df['id'].nunique()
+    # Train
+    train_dataset = torchvision.datasets.ImageFolder(root=train_dir, transform=aug_transform)
     
-    test_df = pd.read_csv(TEST_DF_PATH)
-    test_df['path'] = test_df['path'].apply(lambda x: os.path.join(IMAGES_PATH, x))
-    test_df = test_df.sample(n=1024, random_state=random_state).reset_index(drop=True)
+    n_classes = len(train_dataset.classes)    
+    class_weights = [1.0 / train_dataset.class_to_idx[class_id] for class_id in train_dataset.classes]
+    sample_weights = [class_weights[i] for i in train_dataset.targets]
+    weighted_sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
     
-    # Datasets e Loaders
-    train_dataset = CustomDataset(train_df, transform=aug_transform, dtype=DTYPE)
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=num_workers)
-    
-    test_dataset = CustomDataset(test_df, transform=transform, dtype=DTYPE)
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=num_workers)
+    train_dataloader = DataLoader(
+        train_dataset, 
+        batch_size=batch_size, 
+        shuffle=False, 
+        pin_memory=True, 
+        num_workers=num_workers, 
+        sampler=weighted_sampler)
 
+    # Test
+    test_dataset = torchvision.datasets.ImageFolder(root=test_dir, transform=transform)
+    
+    indices = np.random.permutation(len(test_dataset))[:1024]
+    subset_dataset = Subset(test_dataset, indices)    
+    
+    test_dataloader = DataLoader(
+        subset_dataset, 
+        batch_size=batch_size, 
+        shuffle=False, 
+        pin_memory=True, 
+        num_workers=num_workers)
+    
     # Loss
     criterion = FocalLoss(gamma=2)
     
@@ -193,7 +208,7 @@ if __name__ == '__main__':
     print(f'Device name: {torch.cuda.get_device_name()}')
     print(f'Using tensor type: {DTYPE}')
     
-    print(f'\nImagens: {len(train_df)} | Identidades: {n_classes} | imgs/id: {len(train_df) / n_classes:.2f}\n')
+    print(f'\nImagens: {len(train_dataset)} | Identidades: {n_classes} | imgs/id: {len(train_dataset) / n_classes:.2f}\n')
     
     train(
         model              = model,
