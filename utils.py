@@ -91,7 +91,7 @@ def evaluate(model, val_dataloader, criterion, dtype=torch.bfloat16, device='cud
     return accuracy, precision, recall, f1, loss
 
 class ArcFaceLRScheduler(torch.optim.lr_scheduler._LRScheduler):
-    def __init__(self, optimizer, reduction_epochs=None, reduction_factor=0.1, warmup_epochs=5, last_epoch=-1, warmup_lr=1e-6):
+    def __init__(self, optimizer, reduction_epochs=None, reduction_factor=0.1, warmup_epochs=5, last_epoch=-1, warmup_lr=2.5e-2):
         self.reduction_epochs = reduction_epochs if reduction_epochs is not None else [20, 28]
         self.reduction_factor = reduction_factor
         self.warmup_epochs = warmup_epochs
@@ -153,5 +153,6 @@ def parse_args():
     parser.add_argument('--reduction_factor', type=float, default=0.1, help="Fator de redução da taxa de aprendizado (default: 0.1)")
     parser.add_argument('--reduction_epochs', nargs='+', type=int, default=[20, 28], help="Epochs para redução da taxa de aprendizado (default: [20, 28])")
     parser.add_argument('--warmup_epochs', type=int, default=5, help="Epochs para warmup da taxa de aprendizado (default: 5)")
+    parser.add_argument('--warmup_lr', type=float, default=2.5e-2, help="Taxa de aprendizado inicial para warmup (default: 2.5e-2)")
         
     return parser.parse_args()

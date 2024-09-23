@@ -126,6 +126,7 @@ if __name__ == '__main__':
     reduction_factor = args.reduction_factor
     reduction_epochs = args.reduction_epochs
     warmup_epochs = args.warmup_epochs
+    warmup_lr = args.warmup_lr
     
     # Seed para reproducibilidade
     set_seed(random_state)
@@ -147,7 +148,9 @@ if __name__ == '__main__':
         's': s,
         'm': m,
         'reduction_factor': reduction_factor,
-        'reduction_epochs': reduction_epochs
+        'reduction_epochs': reduction_epochs,
+        'warmup_epochs': warmup_epochs,
+        'warmup_lr': warmup_lr
     }
 
     if USING_WANDB:
@@ -195,7 +198,7 @@ if __name__ == '__main__':
     scaler = GradScaler(init_scale=2**14)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
     
-    scheduler = ArcFaceLRScheduler(optimizer, warmup_epochs=warmup_epochs+1, reduction_epochs=reduction_epochs, reduction_factor=reduction_factor, last_epoch=-1)
+    scheduler = ArcFaceLRScheduler(optimizer, warmup_lr=warmup_lr, warmup_epochs=warmup_epochs+1, reduction_epochs=reduction_epochs, reduction_factor=reduction_factor, last_epoch=-1)
 
     # -----
     
