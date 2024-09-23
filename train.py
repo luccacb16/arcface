@@ -50,7 +50,6 @@ def train(
     for epoch in range(epochs):
         model.train()
         running_loss = 0.0
-        epoch_norm = 0.0
         optimizer.zero_grad()
         
         num_batches = len(train_dataloader) // accumulation_steps
@@ -67,9 +66,6 @@ def train(
             scaler.scale(loss).backward()
             
             if (step + 1) % accumulation_steps == 0:
-                scaler.unscale_(optimizer)
-                # += torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad()
@@ -81,7 +77,6 @@ def train(
         progress_bar.close()
         
         epoch_loss = running_loss / len(train_dataloader)
-        #epoch_norm = epoch_norm / num_batches
         epoch_accuracy, epoch_precision, epoch_recall, epoch_f1, val_loss = evaluate(model, test_dataloader, criterion, dtype=dtype, device=device)
         
         if USING_WANDB:
@@ -96,7 +91,7 @@ def train(
                 'lr': optimizer.param_groups[0]['lr']
             })
             
-        print(f"Epoch [{epoch+1}/{epochs}] | loss: {epoch_loss:.6f} | val_loss: {val_loss:.6f} | norm: {epoch_norm:.6f} | LR: {optimizer.param_groups[0]['lr']:.2e}")
+        print(f"Epoch [{epoch+1}/{epochs}] | loss: {epoch_loss:.6f} | val_loss: {val_loss:.6f} | LR: {optimizer.param_groups[0]['lr']:.2e}")
         print(f"Metrics: accuracy: {epoch_accuracy:.4f} | precision: {epoch_precision:.4f} | recall: {epoch_recall:.4f} | f1: {epoch_f1:.4f}\n")
         model.save_checkpoint(checkpoint_path, f'epoch_{epoch+1}.pt')
         if USING_WANDB: 
