@@ -38,10 +38,10 @@ class ArcFaceResNet50(nn.Module):
 
         self.features = nn.Sequential(*list(resnet.children())[:-1])
         
-        self.fc1 = nn.Linear(2048, emb_size)
         self.bn1 = nn.BatchNorm1d(emb_size)
-        self.relu = nn.ReLU(inplace=True)
         self.dropout = nn.Dropout(p=0.5)
+        self.fc1 = nn.Linear(2048, emb_size)
+        self.bn2 = nn.BatchNorm1d(emb_size)
         
         self.arcface = ArcMarginProduct(emb_size, n_classes, s, m)
 
@@ -51,6 +51,15 @@ class ArcFaceResNet50(nn.Module):
         self.n_classes = n_classes
         
         self.num_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        
+    def get_embedding(self, x):
+        x = self.features(x)
+        x = torch.flatten(x, 1)
+        x = self.bn1(x)
+        x = self.dropout(x)
+        x = self.fc1(x)
+        x = self.bn2(x)
+        return x
 
     def forward(self, x, labels=None):
         x = self.get_embedding(x)
@@ -72,13 +81,6 @@ class ArcFaceResNet50(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
                 nn.init.constant_(m.bias, 0)
-                
-    def get_embedding(self, x):
-        x = self.features(x)
-        x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = self.bn1(x)
-        return x
     
     def save_checkpoint(self, path, filename):
         if not os.path.exists(path):
