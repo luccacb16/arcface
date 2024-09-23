@@ -38,7 +38,7 @@ class ArcFaceResNet50(nn.Module):
 
         self.features = nn.Sequential(*list(resnet.children())[:-1])
         
-        self.bn1 = nn.BatchNorm1d(emb_size)
+        self.bn1 = nn.BatchNorm1d(2048)
         self.dropout = nn.Dropout(p=0.5)
         self.fc1 = nn.Linear(2048, emb_size)
         self.bn2 = nn.BatchNorm1d(emb_size)
