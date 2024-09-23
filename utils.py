@@ -22,6 +22,8 @@ aug_transform = Compose([
     Resize([128, 128]),
     RandomCrop([112, 112]),
     RandomHorizontalFlip(),
+    RandomRotation(15),
+    ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
     ToTensor(),
     Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
 ])
@@ -154,5 +156,6 @@ def parse_args():
     parser.add_argument('--reduction_epochs', nargs='+', type=int, default=[20, 28], help="Epochs para redução da taxa de aprendizado (default: [20, 28])")
     parser.add_argument('--warmup_epochs', type=int, default=5, help="Epochs para warmup da taxa de aprendizado (default: 5)")
     parser.add_argument('--world_size', type=int, default=None, help="Número de GPUs para usar (default: None)")
+    parser.add_argument('--warmup_lr', type=float, default=2.5e-2, help="Taxa de aprendizado inicial para warmup (default: 2.5e-2)")
     
     return parser.parse_args()

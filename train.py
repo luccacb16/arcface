@@ -89,7 +89,6 @@ def train(
     for epoch in range(epochs):
         model.train()
         running_loss = 0.0
-        epoch_norm = 0.0
         optimizer.zero_grad()
         
         num_batches = len(train_dataloader) // accumulation_steps
@@ -107,9 +106,6 @@ def train(
             scaler.scale(loss).backward()
             
             if (step + 1) % accumulation_steps == 0:
-                scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad()
@@ -176,6 +172,7 @@ if __name__ == '__main__':
     reduction_factor = args.reduction_factor
     reduction_epochs = args.reduction_epochs
     warmup_epochs = args.warmup_epochs
+    warmup_lr = args.warmup_lr
     world_size = args.world_size if args.world_size else torch.cuda.device_count()
     
     # Seed for reproducibility
