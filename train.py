@@ -196,7 +196,9 @@ if __name__ == '__main__':
         'm': m,
         'reduction_factor': reduction_factor,
         'reduction_epochs': reduction_epochs,
-        'world_size': world_size
+        'world_size': world_size,
+        'warmup_epochs': warmup_epochs,
+        'warmup_lr': warmup_lr
     }
 
     if USING_WANDB:
@@ -220,7 +222,7 @@ if __name__ == '__main__':
     # Scaler, Optimizer and Scheduler
     scaler = GradScaler(init_scale=2**14)
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
-    scheduler = ArcFaceLRScheduler(optimizer, warmup_epochs=warmup_epochs+1, reduction_epochs=reduction_epochs, reduction_factor=reduction_factor, last_epoch=-1)
+    scheduler = ArcFaceLRScheduler(optimizer, warmup_lr=warmup_lr, warmup_epochs=warmup_epochs+1, reduction_epochs=reduction_epochs, reduction_factor=reduction_factor, last_epoch=-1)
 
     print(f'\nModel: {model.__class__.__name__} | Params: {model.num_params/1e6:.2f}M')
     print(f'Number of GPUs: {world_size}')
