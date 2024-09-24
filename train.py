@@ -234,14 +234,15 @@ if __name__ == '__main__':
     print(f'Device name: {torch.cuda.get_device_name()}')
     print(f'Using tensor type: {DTYPE}')
     
-    print(f'\n[TRAIN] Imagens: {len(train_dataset)} | Identidades: {n_classes} | imgs/id: {len(train_dataset) / n_classes:.2f}\n')
-    print(f'\n[TEST] Imagens: {len(test_dataset)} | Identidades: {len(test_dataset.classes)} | imgs/id: {len(test_dataset) / len(test_dataset.classes):.2f}\n')
-    print(f'\n[EVAL] Imagens: {len(eval_dataset)} | Identidades: {len(eval_dataset.classes)} | imgs/id: {len(eval_dataset) / len(eval_dataset.classes):.2f}\n')
+    print(f'\n[TRAIN] Imagens: {len(train_dataset)} | Identidades: {n_classes} | imgs/id: {len(train_dataset) / n_classes:.2f}')
+    print(f'[TEST] Imagens: {len(test_dataset)} | Identidades: {len(test_dataset.classes)} | imgs/id: {len(test_dataset) / len(test_dataset.classes):.2f}')
+    print(f'[EVAL] Imagens: {len(eval_dataset)} | Identidades: {len(eval_dataset.classes)} | imgs/id: {len(eval_dataset) / len(eval_dataset.classes):.2f}\n')
     
     train(
         model              = model,
         train_dataloader   = train_dataloader,
         test_dataloader    = test_dataloader,
+        eval_dataloader    = eval_dataloader,
         criterion          = criterion,
         optimizer          = optimizer,
         scaler             = scaler,
