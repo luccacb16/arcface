@@ -194,6 +194,7 @@ class EvalDataset(Dataset):
         self.eval_dir = eval_dir
         self.pairs_df = pairs_df
         self.transform = transform
+        self.classes = list(pairs_df['img1'].unique()) + list(pairs_df['img2'].unique())
 
     def __getitem__(self, index):
         row = self.pairs_df.iloc[index]
