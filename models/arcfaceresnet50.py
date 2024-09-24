@@ -52,17 +52,13 @@ class ArcFaceResNet50(nn.Module):
         
         self.num_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         
-    def get_embedding(self, x):
+    def forward(self, x, labels=None):
         x = self.features(x)
         x = torch.flatten(x, 1)
         x = self.bn1(x)
         x = self.dropout(x)
         x = self.fc1(x)
         x = self.bn2(x)
-        return x
-
-    def forward(self, x, labels=None):
-        x = self.get_embedding(x)
         
         if labels is not None:
             x = self.arcface(x, labels)

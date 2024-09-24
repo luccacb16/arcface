@@ -83,8 +83,8 @@ def calculate_distances(model: nn.Module, pairs: pd.DataFrame, batch_size=32, tr
         for img1_batch, img2_batch, _ in dataloader:
             img1_batch, img2_batch = img1_batch.to(device), img2_batch.to(device)
             
-            outputs1 = model.get_embedding(img1_batch)
-            outputs2 = model.get_embedding(img2_batch)
+            outputs1 = model(img1_batch)
+            outputs2 = model(img2_batch)
             
             batch_distances = metric_map[metric](outputs1, outputs2)
             
