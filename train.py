@@ -192,10 +192,10 @@ if __name__ == '__main__':
     criterion = FocalLoss(gamma=2)
     
     # Modelo
-    if model not in model_map:
+    if model.lower() not in model_map:
         raise ValueError(f'Modelo {model} não encontrado')
     
-    model = model_map[model](emb_size=emb_size, n_classes=n_classes, s=s, m=m).to(device)
+    model = model_map[model.lower()](emb_size=emb_size, n_classes=n_classes, s=s, m=m).to(device)
         
     if compile:
         model = torch.compile(model)

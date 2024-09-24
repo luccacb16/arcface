@@ -1,4 +1,5 @@
 cmd="python3 train.py \
+  --model arcfaceresnet50 \
   --batch_size 128 \
   --accumulation 512 \
   --epochs 32 \
