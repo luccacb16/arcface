@@ -55,7 +55,7 @@ class CustomDataset(Dataset):
 
 # EVAL
 
-def evaluate(model, val_dataloader, criterion, dtype=torch.bfloat16, device='cuda'):
+def test(model, val_dataloader, criterion, dtype=torch.bfloat16, device='cuda'):
     correct = 0
     total = 0
     total_loss = 0.0
@@ -146,6 +146,7 @@ def parse_args():
     parser.add_argument('--num_workers', type=int, default=1, help='Número de workers para o DataLoader (default: 1)')
     parser.add_argument('--train_dir', type=str, default='./data/CASIA/train', help='Caminho para o diretório de treino (default: ./data/CASIA/train)')
     parser.add_argument('--test_dir', type=str, default='./data/CASIA/test', help='Caminho para o diretório de teste (default: ./data/CASIA/test)')
+    parser.add_argument('--eval_dir', type=str, default='./data/LFW', help='Caminho para o diretório de eval (default: ./data/LFW)')
     parser.add_argument('--checkpoint_path', type=str, default='./checkpoints/', help='Caminho para salvar os checkpoints (default: ./checkpoints/)')
     parser.add_argument('--compile', action='store_true', help='Se deve compilar o modelo (default: False)')
     parser.add_argument('--wandb', action='store_true', help='Se está rodando com o Weights & Biases (default: False)')

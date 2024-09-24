@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torchvision.datasets
 from tqdm import tqdm
 import os
@@ -14,8 +15,10 @@ import wandb.wandb_torch
 
 from models.arcfaceresnet50 import ArcFaceResNet50
 from models.irse50 import IR_SE_50
+from models.inception_resnet_v1 import InceptionResnetV1
 
-from utils import parse_args, transform, aug_transform, evaluate, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed
+from utils import parse_args, transform, aug_transform, test, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed
+from eval_utils import evaluate, EvalDataset
 
 torch.set_float32_matmul_precision('high')
 torch.backends.cudnn.benchmark = True
@@ -33,7 +36,8 @@ USING_WANDB = False
 
 model_map = {
     'arcfaceresnet50': ArcFaceResNet50,
-    'irse50': IR_SE_50
+    'irse50': IR_SE_50,
+    'inceptionresnetv1': InceptionResnetV1
 }
 
 # --------------------------------------------------------------------------------------------------------
@@ -42,6 +46,7 @@ def train(
     model: nn.Module,
     train_dataloader: DataLoader,
     test_dataloader: DataLoader,
+    eval_dataloader: DataLoader,
     criterion: nn.Module,
     optimizer: torch.optim.Optimizer,
     scaler: GradScaler,
@@ -83,13 +88,16 @@ def train(
         progress_bar.close()
         
         epoch_loss = running_loss / len(train_dataloader)
-        epoch_accuracy, epoch_precision, epoch_recall, epoch_f1, val_loss = evaluate(model, test_dataloader, criterion, dtype=dtype, device=device)
-        
+        epoch_accuracy, epoch_precision, epoch_recall, epoch_f1, val_loss = test(model, test_dataloader, criterion, dtype=dtype, device=device)
+        eval_val, eval_accuracy = evaluate(model, eval_dataloader, target_far=1e-3, device=device, dtype=dtype)
+
         if USING_WANDB:
             wandb.log({
                 'epoch': epoch+1,
                 'train_loss': epoch_loss,
                 'val_loss': val_loss,
+                'eval_val': eval_val,
+                'eval_accuracy': eval_accuracy,
                 'accuracy': epoch_accuracy,
                 'precision': epoch_precision,
                 'recall': epoch_recall,
@@ -99,6 +107,7 @@ def train(
             
         print(f"Epoch [{epoch+1}/{epochs}] | loss: {epoch_loss:.6f} | val_loss: {val_loss:.6f} | LR: {optimizer.param_groups[0]['lr']:.2e}")
         print(f"Metrics: accuracy: {epoch_accuracy:.4f} | precision: {epoch_precision:.4f} | recall: {epoch_recall:.4f} | f1: {epoch_f1:.4f}\n")
+        print(f"[LFW]: VAL@FAR1e-3: {eval_val:.4f} | Accuracy: {eval_accuracy:.4f}\n")
         model.save_checkpoint(checkpoint_path, f'epoch_{epoch+1}.pt')
         if USING_WANDB: 
             save_model_artifact(checkpoint_path, epoch+1)
@@ -118,6 +127,7 @@ if __name__ == '__main__':
     num_workers = args.num_workers
     train_dir = args.train_dir
     test_dir = args.test_dir
+    eval_dir = args.eval_dir
     CHECKPOINT_PATH = args.checkpoint_path
     compile = args.compile
     USING_WANDB = args.wandb
@@ -144,6 +154,7 @@ if __name__ == '__main__':
         'num_workers': num_workers,
         'train_dir': train_dir,
         'test_dir': test_dir,
+        'eval_dir': eval_dir,
         'checkpoint_path': CHECKPOINT_PATH,
         'compile': compile,
         'random_state': random_state,
@@ -188,6 +199,16 @@ if __name__ == '__main__':
         pin_memory=True, 
         num_workers=num_workers)
     
+    # Eval
+    eval_pairs_df = pd.read_csv(os.path.join(eval_dir, 'pairsDevTest.csv')) 
+    eval_dataset = EvalDataset(eval_dir=eval_dir, pairs_df=eval_pairs_df, transform=transform)
+    eval_dataloader = DataLoader(
+        eval_dataset, 
+        batch_size=batch_size, 
+        shuffle=False, 
+        pin_memory=True, 
+        num_workers=num_workers)
+    
     # Loss
     criterion = FocalLoss(gamma=2)
     
@@ -213,7 +234,9 @@ if __name__ == '__main__':
     print(f'Device name: {torch.cuda.get_device_name()}')
     print(f'Using tensor type: {DTYPE}')
     
-    print(f'\nImagens: {len(train_dataset)} | Identidades: {n_classes} | imgs/id: {len(train_dataset) / n_classes:.2f}\n')
+    print(f'\n[TRAIN] Imagens: {len(train_dataset)} | Identidades: {n_classes} | imgs/id: {len(train_dataset) / n_classes:.2f}\n')
+    print(f'\n[TEST] Imagens: {len(test_dataset)} | Identidades: {len(test_dataset.classes)} | imgs/id: {len(test_dataset) / len(test_dataset.classes):.2f}\n')
+    print(f'\n[EVAL] Imagens: {len(eval_dataset)} | Identidades: {len(eval_dataset.classes)} | imgs/id: {len(eval_dataset) / len(eval_dataset.classes):.2f}\n')
     
     train(
         model              = model,

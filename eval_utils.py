@@ -1,11 +1,15 @@
 import torch
+import torchvision
 import torch.nn as nn
 from PIL import Image
 import pandas as pd
 import numpy as np
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, accuracy_score
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
+from torch.amp import autocast
+import random
+import os
 
 # get_pairs -> calcular distancias -> ROC -> accuracy -> dist stats
 
@@ -181,3 +185,67 @@ def eval_epoch(
     pos_mean, pos_std, neg_mean, neg_std = distance_stats(pairs_dist)
     print(f'[{model.__class__.__name__}] Positive mean: {pos_mean:.4f} ± {pos_std:.4f}')
     print(f'[{model.__class__.__name__}] Negative mean: {neg_mean:.4f} ± {neg_std:.4f}')
+    
+class EvalDataset(Dataset):
+    '''
+    Dataset para obter os pares no pairsDevTest.csv, que possui as colunas img1, img2, label
+    '''
+    def __init__(self, eval_dir: str, pairs_df: pd.DataFrame, transform=None):
+        self.eval_dir = eval_dir
+        self.pairs_df = pairs_df
+        self.transform = transform
+
+    def __getitem__(self, index):
+        row = self.pairs_df.iloc[index]
+        img1_path = os.path.join(self.eval_dir, row['img1'])
+        img2_path = os.path.join(self.eval_dir, row['img2'])
+        label = row['label']
+        
+        img1 = Image.open(img1_path).convert('RGB')
+        img2 = Image.open(img2_path).convert('RGB')
+
+        if self.transform:
+            img1 = self.transform(img1)
+            img2 = self.transform(img2)
+
+        return img1, img2, label
+
+    def __len__(self):
+        return len(self.pairs_df)
+
+def evaluate(model, eval_dataloader, target_far: float = 1e-3, device: str = 'cuda', dtype=torch.float16):
+    model.eval()
+    embeddings = []
+    labels = []
+
+    with autocast(dtype=dtype, device_type=device):
+        with torch.no_grad():
+            for img1, img2, label in eval_dataloader:
+                img1, img2 = img1.to(device), img2.to(device)
+                emb1 = model(img1)
+                emb2 = model(img2)
+                embeddings.append(emb1)
+                embeddings.append(emb2)
+                labels.append(label)
+
+    embeddings = torch.cat(embeddings, dim=0)
+    labels = torch.cat(labels, dim=0)
+
+    distances = []
+    ground_truth = []
+    for i in range(0, len(labels)*2, 2):
+        dist = 1 - torch.nn.functional.cosine_similarity(embeddings[i].unsqueeze(0), embeddings[i+1].unsqueeze(0))
+        distances.append(dist.item())
+        ground_truth.append(labels[i//2].item())
+
+    distances = np.array(distances)
+    ground_truth = np.array(ground_truth)
+
+    fpr, tpr, thresholds = roc_curve(ground_truth, distances)
+    val_index = np.argmin(np.abs(fpr - target_far))
+    val = tpr[val_index]
+    accuracy = accuracy_score(ground_truth, distances < thresholds[val_index])
+    
+    model.train()
+
+    return val, accuracy

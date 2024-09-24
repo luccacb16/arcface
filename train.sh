@@ -7,6 +7,7 @@ cmd="python3 train.py \
   --num_workers 1 \
   --train_dir ./data/CASIA/train \
   --test_dir ./data/CASIA/test \
+  --eval_dir ./data/LFW \
   --checkpoint_path checkpoints/ \
   --random_state 42 \
   --lr 1e-1 \
