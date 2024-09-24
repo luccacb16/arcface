@@ -5,7 +5,7 @@ from torch.nn import functional as F
 from torchvision.models import resnet50
 import warnings
 
-from arcface_layer import ArcMarginProduct
+from .arcface_layer import ArcMarginProduct
 
 class ArcFaceResNet50(nn.Module):
     def __init__(self, n_classes=0, emb_size=512, s=64.0, m=0.5):

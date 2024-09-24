@@ -119,7 +119,7 @@ def train(
 if __name__ == '__main__':
     args = parse_args()
     
-    model = args.model
+    model_name = args.model
     batch_size = args.batch_size
     accumulation = args.accumulation
     epochs = args.epochs
@@ -146,7 +146,7 @@ if __name__ == '__main__':
     accumulation_steps = accumulation // batch_size
     
     config = {
-        'model': model,
+        'model': model_name,
         'batch_size': batch_size,
         'accumulation': accumulation,
         'epochs': epochs,
@@ -213,10 +213,10 @@ if __name__ == '__main__':
     criterion = FocalLoss(gamma=2)
     
     # Modelo
-    if model.lower() not in model_map:
-        raise ValueError(f'Modelo {model} não encontrado')
+    if model_name.lower() not in model_map:
+        raise ValueError(f'Modelo {model_name} não encontrado')
     
-    model = model_map[model.lower()](emb_size=emb_size, n_classes=n_classes, s=s, m=m).to(device)
+    model = model_map[model_name.lower()](emb_size=emb_size, n_classes=n_classes, s=s, m=m).to(device)
         
     if compile:
         model = torch.compile(model)
