@@ -138,6 +138,7 @@ class FocalLoss(torch.nn.Module):
     
 def parse_args():
     parser = argparse.ArgumentParser(description="Treinar a rede neural como classificador")
+    parser.add_argument('--model', type=str, default='arcfaceresnet50', help='Modelo a ser utilizado (default: arcfaceresnet50)')
     parser.add_argument('--batch_size', type=int, default=128, help='Tamanho do batch (default: 128)')
     parser.add_argument('--accumulation', type=int, default=512, help='Acumulação de gradientes (default: 512)')
     parser.add_argument('--epochs', type=int, default=32, help='Número de epochs (default: 32)')

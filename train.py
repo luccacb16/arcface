@@ -14,6 +14,7 @@ from torch.amp import GradScaler, autocast
 import wandb.wandb_torch
 
 from models.arcfaceresnet50 import ArcFaceResNet50
+from models.irse50 import IR_SE_50
 
 from utils import parse_args, transform, aug_transform, CustomDataset, evaluate, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed
 
@@ -28,6 +29,11 @@ if torch.cuda.is_available():
         DTYPE = torch.float16
         
 USING_WANDB = False
+
+model_map = {
+    'arcfaceresnet50': ArcFaceResNet50,
+    'irse50': IR_SE_50
+}
 
 def setup(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
@@ -155,6 +161,7 @@ def train(
 if __name__ == '__main__':
     args = parse_args()
     
+    model = args.model
     batch_size = args.batch_size
     accumulation = args.accumulation
     epochs = args.epochs
@@ -181,6 +188,7 @@ if __name__ == '__main__':
     accumulation_steps = accumulation // batch_size
     
     config = {
+        'model': model,
         'batch_size': batch_size,
         'accumulation': accumulation,
         'epochs': epochs,
@@ -214,7 +222,9 @@ if __name__ == '__main__':
     criterion = FocalLoss(gamma=2)
     
     # Model
-    model = ArcFaceResNet50(emb_size=emb_size, n_classes=n_classes, s=s, m=m)
+    if model.lower() not in model_map:
+        raise ValueError(f"Model {model} não encontrado")
+    model = model_map[model.lower()](emb_size=emb_size, n_classes=n_classes, s=s, m=m)
         
     if compile:
         model = torch.compile(model)
