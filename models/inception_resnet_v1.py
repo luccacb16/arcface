@@ -273,8 +273,8 @@ class InceptionResnetV1(nn.Module):
             'state_dict': model_state_dict,
             'n_classes': self.n_classes,
             'emb_size': self.emb_size,
-            'm': self.arcface.m,
-            's': self.arcface.s
+            'm': self.m,
+            's': self.s
         }
         torch.save(checkpoint, os.path.join(path, filename))
         
