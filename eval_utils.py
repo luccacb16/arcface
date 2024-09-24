@@ -200,7 +200,7 @@ class EvalDataset(Dataset):
         row = self.pairs_df.iloc[index]
         img1_path = os.path.join(self.eval_dir, row['img1'])
         img2_path = os.path.join(self.eval_dir, row['img2'])
-        label = row['label']
+        label = row['same']
         
         img1 = Image.open(img1_path).convert('RGB')
         img2 = Image.open(img2_path).convert('RGB')
