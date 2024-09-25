@@ -19,7 +19,7 @@ class ArcFaceResNet50(nn.Module):
         self.fc1 = nn.Linear(2048, emb_size)
         self.bn2 = nn.BatchNorm1d(emb_size)
         
-        self.arcface = ArcMarginProduct(emb_size, n_classes, s, m)
+        self.arcface = ArcMarginProduct(in_features=emb_size, out_features=n_classes, s=s, m=m)
 
         self._initialize_weights()
         

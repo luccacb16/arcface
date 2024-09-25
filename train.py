@@ -106,7 +106,7 @@ def train(
             })
             
         print(f"Epoch [{epoch+1}/{epochs}] | loss: {epoch_loss:.6f} | val_loss: {val_loss:.6f} | LR: {optimizer.param_groups[0]['lr']:.2e}")
-        print(f"Metrics: accuracy: {epoch_accuracy:.4f} | precision: {epoch_precision:.4f} | recall: {epoch_recall:.4f} | f1: {epoch_f1:.4f}\n")
+        print(f"Metrics: accuracy: {epoch_accuracy:.4f} | precision: {epoch_precision:.4f} | recall: {epoch_recall:.4f} | f1: {epoch_f1:.4f}")
         print(f"[LFW]: VAL@FAR1e-3: {eval_val:.4f} | Accuracy: {eval_accuracy:.4f}\n")
         model.save_checkpoint(checkpoint_path, f'epoch_{epoch+1}.pt')
         if USING_WANDB: 
