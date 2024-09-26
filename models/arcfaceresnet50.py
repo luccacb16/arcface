@@ -70,7 +70,6 @@ class ArcFaceResNet50(nn.Module):
         torch.save(checkpoint, os.path.join(path, filename))
         
     def load_checkpoint(path):
-        # Suprimindo o FutureWarning específico para torch.load
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=FutureWarning)
             checkpoint = torch.load(path)

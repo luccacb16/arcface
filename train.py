@@ -14,8 +14,6 @@ from torch.amp import GradScaler, autocast
 import wandb.wandb_torch
 
 from models.arcfaceresnet50 import ArcFaceResNet50
-from models.irse50 import IR_SE_50
-from models.inception_resnet_v1 import InceptionResnetV1
 
 from utils import parse_args, transform, aug_transform, test, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed
 from eval_utils import evaluate, EvalDataset
@@ -36,8 +34,6 @@ USING_WANDB = False
 
 model_map = {
     'arcfaceresnet50': ArcFaceResNet50,
-    'irse50': IR_SE_50,
-    'inceptionresnetv1': InceptionResnetV1
 }
 
 # --------------------------------------------------------------------------------------------------------
@@ -102,7 +98,9 @@ def train(
                 'precision': epoch_precision,
                 'recall': epoch_recall,
                 'f1': epoch_f1,
-                'lr': optimizer.param_groups[0]['lr']
+                'lr': optimizer.param_groups[0]['lr'],
+                'eval_val': eval_val,
+                'eval_accuracy': eval_accuracy
             })
             
         print(f"Epoch [{epoch+1}/{epochs}] | loss: {epoch_loss:.6f} | val_loss: {val_loss:.6f} | LR: {optimizer.param_groups[0]['lr']:.2e}")
