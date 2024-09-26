@@ -14,6 +14,7 @@ from torch.amp import GradScaler, autocast
 import wandb
 
 from models.arcfaceresnet50 import ArcFaceResNet50
+from models.inception_resnet_v1 import InceptionResNetV1
 
 from utils import parse_args, transform, aug_transform, test, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed
 from eval_utils import evaluate, EvalDataset
@@ -34,6 +35,7 @@ USING_WANDB = False
 
 model_map = {
     'arcfaceresnet50': ArcFaceResNet50,
+    'inceptionresnetv1': InceptionResNetV1
 }
 
 # --------------------------------------------------------------------------------------------------------
