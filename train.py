@@ -11,7 +11,7 @@ import torchvision
 import torch.nn as nn
 from torch.utils.data import DataLoader, WeightedRandomSampler
 from torch.amp import GradScaler, autocast
-import wandb.wandb_torch
+import wandb
 
 from models.arcfaceresnet50 import ArcFaceResNet50
 
