@@ -15,6 +15,8 @@ import wandb
 
 from models.arcfaceresnet50 import ArcFaceResNet50
 from models.inception_resnet_v1 import InceptionResNetV1
+from models.ir_se_50 import IR_SE_50
+from models.arcfaceresnet101 import ArcFaceResNet101
 
 from utils import parse_args, transform, aug_transform, test, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed
 from eval_utils import evaluate, EvalDataset
@@ -35,7 +37,9 @@ USING_WANDB = False
 
 model_map = {
     'arcfaceresnet50': ArcFaceResNet50,
-    'inceptionresnetv1': InceptionResNetV1
+    'inceptionresnetv1': InceptionResNetV1,
+    'irse50': IR_SE_50,
+    'arcfaceresnet100': ArcFaceResNet101
 }
 
 # --------------------------------------------------------------------------------------------------------
@@ -75,6 +79,8 @@ def train(
             scaler.scale(loss).backward()
             
             if (step + 1) % accumulation_steps == 0:
+                scaler.unscale_(optimizer)
+                nn.utils.clip_grad_norm_(model.parameters(), 5)
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad()

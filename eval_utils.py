@@ -143,7 +143,12 @@ def accuracy(pairs: pd.DataFrame, threshold: float) -> float:
 def VAL(pairs: pd.DataFrame, threshold: float) -> float:
     true_positives = pairs['label'] == 1
     classified_as_true = pairs['distance'] < threshold
-    val = sum(true_positives & classified_as_true) / sum(true_positives)
+    total_true_positives = sum(true_positives)
+    
+    if total_true_positives == 0:
+        return 0.0
+    
+    val = sum(true_positives & classified_as_true) / total_true_positives
     
     return val
 
@@ -165,7 +170,7 @@ def eval_epoch(
     batch_size: int = 32,
     device='cuda', 
     target_far: float = 1e-3,
-    metric='L2',
+    metric='cosine',
     random_state=42
 ) -> None:
     
@@ -214,7 +219,7 @@ class EvalDataset(Dataset):
     def __len__(self):
         return len(self.pairs_df)
 
-def evaluate(model, eval_dataloader, target_far: float = 1e-3, device: str = 'cuda', dtype=torch.float16):
+def evaluate(model, eval_dataloader, target_far: float = 1e-3, device: str = 'cuda', dtype=torch.float16, output=False):
     model.eval()
     embeddings = []
     labels = []
@@ -243,10 +248,49 @@ def evaluate(model, eval_dataloader, target_far: float = 1e-3, device: str = 'cu
     ground_truth = np.array(ground_truth)
 
     fpr, tpr, thresholds = roc_curve(ground_truth, distances)
-    val_index = np.argmin(np.abs(fpr - target_far))
-    val = tpr[val_index]
-    accuracy = accuracy_score(ground_truth, distances < thresholds[val_index])
+    far_idx = np.where(fpr <= target_far)[0][-1]
+    far_threshold = thresholds[far_idx]
     
+    accuracy = accuracy_score(ground_truth, distances < far_threshold)
+    
+    # Calcular o VAL
+    positive_distances = distances[ground_truth == 1]
+    val = np.mean(positive_distances > far_threshold)
+    
+    if output:
+        # Estatísticas das distâncias
+        pos_mean = distances[ground_truth == 1].mean()
+        pos_std = distances[ground_truth == 1].std()
+        neg_mean = distances[ground_truth == 0].mean()
+        neg_std = distances[ground_truth == 0].std()
+
+        # Plotar a distribuição das distâncias igual na função anterior
+        fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+        pd.Series(distances[ground_truth == 1]).plot.kde(ax=ax[0])
+        pd.Series(distances[ground_truth == 0]).plot.kde(ax=ax[0])
+        ax[0].set_title('Distances distribution')
+        ax[0].legend(['Positive', 'Negative'])
+
+        ax[1].plot(fpr, tpr, color='darkorange', lw=2, label=f'ROC curve (area = {auc(fpr, tpr):.2f})')
+        ax[1].plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+        ax[1].set_xlim([0.0, 1.0])
+        ax[1].set_ylim([0.0, 1.05])
+        ax[1].set_xlabel('False Positive Rate')
+        ax[1].set_ylabel('True Positive Rate')
+        ax[1].set_title('Receiver Operating Characteristic')
+        ax[1].legend(loc="lower right")
+
+        plt.tight_layout()
+        plt.show()
+
+        # Printa accuracy, VAL e estatísticas das distâncias
+        print(f'Target FAR: {target_far:.0e} | Threshold: {far_threshold:.4f}')
+        print(f'Accuracy: {accuracy:.4f}')
+        print(f'VAL: {val:.4f}')
+        print()    
+        print(f'Positive mean: {pos_mean:.4f} ± {pos_std:.4f}')
+        print(f'Negative mean: {neg_mean:.4f} ± {neg_std:.4f}')
+
     model.train()
 
     return val, accuracy

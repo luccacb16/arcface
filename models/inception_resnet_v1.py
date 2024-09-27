@@ -276,6 +276,7 @@ class InceptionResNetV1(nn.Module):
         }
         torch.save(checkpoint, os.path.join(path, filename))
         
+    @staticmethod
     def load_checkpoint(path):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=FutureWarning)

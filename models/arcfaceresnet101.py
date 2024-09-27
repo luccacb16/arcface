@@ -2,15 +2,15 @@ import os
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from torchvision.models import resnet50
+from torchvision.models import resnet101
 import warnings
 
 from .arcface_layer import ArcMarginProduct
 
-class ArcFaceResNet50(nn.Module):
+class ArcFaceResNet101(nn.Module):
     def __init__(self, n_classes=0, emb_size=512, s=64.0, m=0.5):
-        super(ArcFaceResNet50, self).__init__()
-        resnet = resnet50()
+        super(ArcFaceResNet101, self).__init__()
+        resnet = resnet101()
 
         self.features = nn.Sequential(*list(resnet.children())[:-1])
         
@@ -75,6 +75,6 @@ class ArcFaceResNet50(nn.Module):
             warnings.simplefilter("ignore", category=FutureWarning)
             checkpoint = torch.load(path)
     
-        model = ArcFaceResNet50(n_classes=checkpoint['n_classes'], emb_size=checkpoint['emb_size'], s=checkpoint['s'], m=checkpoint['m'])
+        model = ArcFaceResNet101(n_classes=checkpoint['n_classes'], emb_size=checkpoint['emb_size'], s=checkpoint['s'], m=checkpoint['m'])
         model.load_state_dict(checkpoint['state_dict'])
         return model

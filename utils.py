@@ -15,16 +15,15 @@ from torch.amp import autocast
 transform = Compose([
     Resize([112, 112]),
     ToTensor(),
-    Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+    Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
 aug_transform = Compose([
     RandomCrop([112, 112]),
     RandomHorizontalFlip(),
-    RandomRotation(15),
     ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
     ToTensor(),
-    Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+    Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
 # --------------------------------------------------------------------------------------------------------
