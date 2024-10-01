@@ -136,7 +136,7 @@ class IR_SE_50(nn.Module):
         }
         torch.save(checkpoint, os.path.join(path, filename))
     
-    @staticmethod
+    #@staticmethod
     def load_checkpoint(path):
         checkpoint = torch.load(path)
         model = IR_SE_50(n_classes=checkpoint['n_classes'], emb_size=checkpoint['emb_size'], s=checkpoint['s'], m=checkpoint['m'])
