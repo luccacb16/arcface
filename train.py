@@ -145,6 +145,7 @@ if __name__ == '__main__':
     reduction_epochs = args.reduction_epochs
     warmup_epochs = args.warmup_epochs
     warmup_lr = args.warmup_lr
+    pretrain = args.pretrain
     
     # Seed para reproducibilidade
     set_seed(random_state)
@@ -170,12 +171,13 @@ if __name__ == '__main__':
         'reduction_factor': reduction_factor,
         'reduction_epochs': reduction_epochs,
         'warmup_epochs': warmup_epochs,
-        'warmup_lr': warmup_lr
+        'warmup_lr': warmup_lr,
+        'pretrain': pretrain
     }
 
     if USING_WANDB:
         wandb.login(key=os.environ['WANDB_API_KEY'])
-        wandb.init(project='arcface', config=config)
+        wandb.init(project='arcface2', config=config)
 
     # ------
     
@@ -216,7 +218,10 @@ if __name__ == '__main__':
         num_workers=num_workers)
     
     # Loss
-    criterion = FocalLoss(gamma=2)
+    if pretrain:
+        criterion = nn.CrossEntropyLoss()
+    else:
+        criterion = FocalLoss(gamma=2)
     
     # Modelo
     if model_name.lower() not in model_map:
@@ -235,14 +240,15 @@ if __name__ == '__main__':
 
     # -----
     
-    print(f'\nModel: {model.__class__.__name__} | Params: {model.num_params/1e6:.2f}M')
+    print(f'Training mode: {"Pretrain" if pretrain else "ArcFace"}')
+    print(f'Model: {model.__class__.__name__} | Params: {model.num_params/1e6:.2f}M')
     print(f'Device: {device}')
     print(f'Device name: {torch.cuda.get_device_name()}')
     print(f'Using tensor type: {DTYPE}')
     
-    print(f'\n[TRAIN] Imagens: {len(train_dataset)} | Identidades: {n_classes} | imgs/id: {len(train_dataset) / n_classes:.2f}')
-    print(f'[TEST] Imagens: {len(test_dataset)} | Identidades: {len(test_dataset.classes)} | imgs/id: {len(test_dataset) / len(test_dataset.classes):.2f}')
-    print(f'[EVAL] Imagens: {len(eval_dataset)} | Identidades: {len(eval_dataset.classes)} | imgs/id: {len(eval_dataset) / len(eval_dataset.classes):.2f}\n')
+    print(f'\n[TRAIN] Imagens: {len(train_dataset)} | Identidades: {n_classes}')
+    print(f'[TEST] Imagens: {len(test_dataset)} | Identidades: {len(test_dataset.classes)}')
+    print(f'[EVAL] Imagens: {len(eval_dataset)} | Identidades: {len(eval_dataset.classes)}\n')
     
     train(
         model              = model,

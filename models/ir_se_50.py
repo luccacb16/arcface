@@ -50,7 +50,7 @@ class bottleneck_IR_SE(Module):
         return res + shortcut
 
 class IR_SE_50(nn.Module):
-    def __init__(self, n_classes: int = 0, emb_size: int = 512, s: float = 64.0, m: float = 0.5):
+    def __init__(self, n_classes: int = 0, emb_size: int = 512, s: float = 64.0, m: float = 0.5, pretrain=False):
         super(IR_SE_50, self).__init__()
         
         self.input_layer = Sequential(Conv2d(3, 64, (3, 3), 1, 1, bias=False),
@@ -84,10 +84,14 @@ class IR_SE_50(nn.Module):
         self.emb_size = emb_size
         self.s = s
         self.m = m
+        self.pretrain = pretrain
         
+        if self.pretrain:
+            self.logits = Linear(emb_size, n_classes)
+        else:
+            self.logits = ArcMarginProduct(in_features=emb_size, out_features=n_classes, s=s, m=m)
+            
         self._initialize_weights()
-        
-        self.arcface = ArcMarginProduct(in_features=emb_size, out_features=n_classes, s=s, m=m)
         
         self.num_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
     
@@ -96,9 +100,12 @@ class IR_SE_50(nn.Module):
         x = self.body(x)
         x = self.output_layer(x)
         
-        if labels is not None:
-            x = self.arcface(x, labels)
-        
+        if self.pretrain:
+            return self.logits(x)
+        else:
+            if labels is not None:
+                return self.logits(x, labels)
+
         return x
                     
     def _initialize_weights(self):

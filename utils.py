@@ -156,5 +156,6 @@ def parse_args():
     parser.add_argument('--reduction_epochs', nargs='+', type=int, default=[20, 28], help="Epochs para redução da taxa de aprendizado (default: [20, 28])")
     parser.add_argument('--warmup_epochs', type=int, default=5, help="Epochs para warmup da taxa de aprendizado (default: 5)")
     parser.add_argument('--warmup_lr', type=float, default=2.5e-2, help="Taxa de aprendizado inicial para warmup (default: 2.5e-2)")
+    parser.add_argument('--pretrain', action='store_true', help='Se está rodando em modo de pré-treino (default: False)')
         
     return parser.parse_args()
