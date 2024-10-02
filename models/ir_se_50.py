@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import Linear, Conv2d, BatchNorm1d, BatchNorm2d, PReLU, Sigmoid, Dropout, Sequential, Module
 import os
+import warnings
 
 class Flatten(Module):
     def forward(self, input):
@@ -138,6 +139,10 @@ class IR_SE_50(nn.Module):
     
     #@staticmethod
     def load_checkpoint(path):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=FutureWarning)
+            checkpoint = torch.load(path)
+            
         checkpoint = torch.load(path)
         model = IR_SE_50(n_classes=checkpoint['n_classes'], emb_size=checkpoint['emb_size'], s=checkpoint['s'], m=checkpoint['m'])
         model.load_state_dict(checkpoint['state_dict'])

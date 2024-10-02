@@ -229,7 +229,7 @@ if __name__ == '__main__':
     
     model = model_map[model_name.lower()](emb_size=emb_size, n_classes=n_classes, s=s, m=m, pretrain=pretrain).to(device)
     if not pretrain:
-        model = model_map[model_name.lower()].load_checkpoint(os.path.join(CHECKPOINT_PATH, f'{model_name.lower()}_pretrained.pt'))
+        model = model_map[model_name.lower()].load_checkpoint(f'{model_name.lower()}_pretrained.pt').to(device)
         
     if compile:
         model = torch.compile(model)
