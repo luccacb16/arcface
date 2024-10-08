@@ -18,7 +18,7 @@ from models.inception_resnet_v1 import InceptionResNetV1
 from models.ir_se_50 import IR_SE_50
 from models.arcfaceresnet101 import ArcFaceResNet101
 
-from utils import parse_args, transform, aug_transform, test, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed
+from utils import parse_args, transform, aug_transform, test, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed, WarmUpCosineAnnealingLR
 from eval_utils import evaluate, EvalDataset
 
 torch.set_float32_matmul_precision('high')
@@ -34,6 +34,7 @@ if torch.cuda.is_available():
         DTYPE = torch.float16
         
 USING_WANDB = False
+SAVE_STEP = 5
 
 model_map = {
     'arcfaceresnet50': ArcFaceResNet50,
@@ -114,8 +115,9 @@ def train(
         print(f"Epoch [{epoch+1}/{epochs}] | loss: {epoch_loss:.6f} | val_loss: {val_loss:.6f} | LR: {optimizer.param_groups[0]['lr']:.2e}")
         print(f"Metrics: accuracy: {epoch_accuracy:.4f} | precision: {epoch_precision:.4f} | recall: {epoch_recall:.4f} | f1: {epoch_f1:.4f}")
         print(f"[LFW]: VAL@FAR1e-3: {eval_val:.4f} | Accuracy: {eval_accuracy:.4f}\n")
+       
         model.save_checkpoint(checkpoint_path, f'epoch_{epoch+1}.pt')
-        if USING_WANDB: 
+        if (epoch+1) % SAVE_STEP == 0 and USING_WANDB:        
             save_model_artifact(checkpoint_path, epoch+1)
             
         scheduler.step()
@@ -146,6 +148,7 @@ if __name__ == '__main__':
     warmup_epochs = args.warmup_epochs
     warmup_lr = args.warmup_lr
     pretrain = args.pretrain
+    restore_path = args.restore_path
     
     # Seed para reproducibilidade
     set_seed(random_state)
@@ -172,12 +175,13 @@ if __name__ == '__main__':
         'reduction_epochs': reduction_epochs,
         'warmup_epochs': warmup_epochs,
         'warmup_lr': warmup_lr,
-        'pretrain': pretrain
+        'pretrain': pretrain,
+        'restore_path': restore_path
     }
 
     if USING_WANDB:
         wandb.login(key=os.environ['WANDB_API_KEY'])
-        wandb.init(project='arcface2', config=config)
+        wandb.init(project='arcface', config=config)
 
     # ------
     
@@ -228,16 +232,23 @@ if __name__ == '__main__':
         raise ValueError(f'Modelo {model_name} não encontrado!')
     
     model = model_map[model_name.lower()](emb_size=emb_size, n_classes=n_classes, s=s, m=m, pretrain=pretrain).to(device)
-    model = model_map[model_name.lower()].load_checkpoint(f'{model_name.lower()}_pretrained.pt').to(device)
+    
+    if restore_path:
+        model = model_map[model_name.lower()].load_checkpoint(restore_path).to(device)
         
     if compile:
         model = torch.compile(model)
     
     # Scaler, Otimizador e Scheduler
     scaler = GradScaler(init_scale=2**14)
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
-    
-    scheduler = ArcFaceLRScheduler(optimizer, warmup_lr=warmup_lr, warmup_epochs=warmup_epochs+1, reduction_epochs=reduction_epochs, reduction_factor=reduction_factor, last_epoch=-1)
+
+    # Original do paper
+    #optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
+    #scheduler = ArcFaceLRScheduler(optimizer, warmup_lr=warmup_lr, warmup_epochs=warmup_epochs+1, reduction_epochs=reduction_epochs, reduction_factor=reduction_factor, last_epoch=-1)
+
+    # Adaptação para melhor convergência
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    scheduler = WarmUpCosineAnnealingLR(optimizer, epochs=epochs, warmup_epochs=warmup_epochs, min_lr=warmup_lr, max_lr=lr)
 
     # -----
     

@@ -4,6 +4,7 @@ import wandb
 import os
 import random
 import numpy as np
+import math
 
 from sklearn.metrics import precision_recall_fscore_support
 
@@ -108,6 +109,23 @@ class ArcFaceLRScheduler(torch.optim.lr_scheduler._LRScheduler):
             factor = self.reduction_factor ** num_reductions
             return [base_lr * factor for base_lr in self.initial_lrs]
 
+class WarmUpCosineAnnealingLR(torch.optim.lr_scheduler._LRScheduler):
+    def __init__(self, optimizer, epochs, warmup_epochs, min_lr, max_lr, last_epoch=-1):
+        self.epochs = epochs
+        self.min_lr = min_lr
+        self.max_lr = max_lr
+        self.warmup_epochs = warmup_epochs
+        super(WarmUpCosineAnnealingLR, self).__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        if self.last_epoch < self.warmup_epochs:
+            alpha = self.last_epoch / self.warmup_epochs
+            return [self.min_lr + (self.max_lr - self.min_lr) * alpha for _ in self.base_lrs]
+        else:
+            progress = (self.last_epoch - self.warmup_epochs) / (self.epochs - self.warmup_epochs)
+            cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
+            return [self.min_lr + (self.max_lr - self.min_lr) * cosine_decay for _ in self.base_lrs]
+
 def save_model_artifact(checkpoint_path, epoch):
     artifact = wandb.Artifact(f'epoch_{epoch}', type='model')
     artifact.add_file(os.path.join(checkpoint_path, f'epoch_{epoch}.pt'))
@@ -157,5 +175,6 @@ def parse_args():
     parser.add_argument('--warmup_epochs', type=int, default=5, help="Epochs para warmup da taxa de aprendizado (default: 5)")
     parser.add_argument('--warmup_lr', type=float, default=2.5e-2, help="Taxa de aprendizado inicial para warmup (default: 2.5e-2)")
     parser.add_argument('--pretrain', action='store_true', help='Se está rodando em modo de pré-treino (default: False)')
+    parser.add_argument('--restore_path', type=str, default=None, help='Caminho para o checkpoint a ser restaurado (default: None)')
         
     return parser.parse_args()
