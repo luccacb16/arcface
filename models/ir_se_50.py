@@ -89,7 +89,6 @@ class IR_SE_50(nn.Module):
         if self.pretrain:
             self.logits = Linear(emb_size, n_classes)
         else:
-            print(emb_size, n_classes, s, m)
             self.logits = ArcMarginProduct(in_features=emb_size, out_features=n_classes, s=s, m=m)
             
         self._initialize_weights()
