@@ -5,6 +5,7 @@ import os
 import random
 import numpy as np
 import math
+import warnings
 
 from sklearn.metrics import precision_recall_fscore_support
 
@@ -149,6 +150,24 @@ class FocalLoss(torch.nn.Module):
         p = torch.exp(-logp)
         loss = (1 - p) ** self.gamma * logp
         return loss.mean()
+    
+def load_checkpoint(model_class: torch.nn.Module, path: str, pretrain: bool = False):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=FutureWarning)
+        checkpoint = torch.load(path)
+    
+    model = model_class(pretrain=pretrain, n_classes=checkpoint['n_classes'], emb_size=checkpoint['emb_size'], s=checkpoint['s'], m=checkpoint['m'])
+    
+    if pretrain:
+        model.load_state_dict(checkpoint['state_dict'])
+    else:
+        # Carregar sem logits
+        model_dict = model.state_dict()
+        pretrained_dict = {k: v for k, v in checkpoint['state_dict'].items() if k in model_dict}
+        model_dict.update(pretrained_dict)
+        model.load_state_dict(model_dict)
+        
+    return model
 
 # --------------------------------------------------------------------------------------------------------
     

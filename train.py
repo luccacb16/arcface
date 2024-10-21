@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import torchvision.datasets
 from tqdm import tqdm
@@ -18,7 +17,7 @@ from models.inception_resnet_v1 import InceptionResNetV1
 from models.ir_se_50 import IR_SE_50
 from models.arcfaceresnet101 import ArcFaceResNet101
 
-from utils import parse_args, transform, aug_transform, test, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed, WarmUpCosineAnnealingLR
+from utils import load_checkpoint, parse_args, transform, aug_transform, test, ArcFaceLRScheduler, FocalLoss, save_model_artifact, set_seed, WarmUpCosineAnnealingLR
 from eval_utils import evaluate, EvalDataset
 
 torch.set_float32_matmul_precision('high')
@@ -231,20 +230,20 @@ if __name__ == '__main__':
     if model_name.lower() not in model_map:
         raise ValueError(f'Modelo {model_name} não encontrado!')
     
-    model = model_map[model_name.lower()](emb_size=emb_size, n_classes=n_classes, s=s, m=m, pretrain=pretrain).to(device)
-    
-    if restore_path:
-        model = model_map[model_name.lower()].load_checkpoint(restore_path).to(device)
+    if pretrain:
+        model = model_map[model_name.lower()](emb_size=emb_size, n_classes=n_classes, s=s, m=m, pretrain=pretrain).to(device)
+    else:    
+        model = load_checkpoint(
+            model_class=model_map[model_name.lower()],
+            path=restore_path,
+            pretrain=pretrain
+        ).to(device)
         
     if compile:
         model = torch.compile(model)
     
     # Scaler, Otimizador e Scheduler
     scaler = GradScaler(init_scale=2**14)
-
-    # Original do paper
-    #optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=5e-4)
-    #scheduler = ArcFaceLRScheduler(optimizer, warmup_lr=warmup_lr, warmup_epochs=warmup_epochs+1, reduction_epochs=reduction_epochs, reduction_factor=reduction_factor, last_epoch=-1)
 
     # Adaptação para melhor convergência
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)

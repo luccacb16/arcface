@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from torch.nn import Linear, Conv2d, BatchNorm1d, BatchNorm2d, PReLU, Sigmoid, Dropout, Sequential, Module
 import os
-import warnings
 
 class Flatten(Module):
     def forward(self, input):
@@ -26,9 +25,9 @@ class SEModule(Module):
         x = self.sigmoid(x)
         return module_input * x
 
-class bottleneck_IR_SE(Module):
+class Bottleneck_IR_SE(Module):
     def __init__(self, in_channel, depth, stride):
-        super(bottleneck_IR_SE, self).__init__()
+        super(Bottleneck_IR_SE, self).__init__()
         if in_channel == depth:
             self.shortcut_layer = nn.MaxPool2d(1, stride)
         else:
@@ -70,7 +69,7 @@ class IR_SE_50(nn.Module):
             num_units, in_channel, depth = block
             for i in range(num_units):
                 stride = 2 if i == 0 else 1
-                modules.append(bottleneck_IR_SE(in_channel, depth, stride))
+                modules.append(Bottleneck_IR_SE(in_channel, depth, stride))
                 in_channel = depth
                 
         self.body = Sequential(*modules)
@@ -90,6 +89,7 @@ class IR_SE_50(nn.Module):
         if self.pretrain:
             self.logits = Linear(emb_size, n_classes)
         else:
+            print(emb_size, n_classes, s, m)
             self.logits = ArcMarginProduct(in_features=emb_size, out_features=n_classes, s=s, m=m)
             
         self._initialize_weights()
@@ -136,17 +136,6 @@ class IR_SE_50(nn.Module):
             'm': self.m
         }
         torch.save(checkpoint, os.path.join(path, filename))
-    
-    #@staticmethod
-    def load_checkpoint(path):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=FutureWarning)
-            checkpoint = torch.load(path)
-            
-        checkpoint = torch.load(path)
-        model = IR_SE_50(n_classes=checkpoint['n_classes'], emb_size=checkpoint['emb_size'], s=checkpoint['s'], m=checkpoint['m'])
-        model.load_state_dict(checkpoint['state_dict'])
-        return model
 
 class ArcMarginProduct(nn.Module):
     def __init__(self, in_features, out_features, s=64.0, m=0.50, easy_margin=False):
