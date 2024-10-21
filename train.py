@@ -148,6 +148,7 @@ if __name__ == '__main__':
     warmup_lr = args.warmup_lr
     pretrain = args.pretrain
     restore_path = args.restore_path
+    freeze = args.freeze
     
     # Seed para reproducibilidade
     set_seed(random_state)
@@ -236,7 +237,8 @@ if __name__ == '__main__':
         model = load_checkpoint(
             model_class=model_map[model_name.lower()],
             path=restore_path,
-            pretrain=pretrain
+            pretrain=pretrain,
+            freeze=freeze
         ).to(device)
         
     if compile:

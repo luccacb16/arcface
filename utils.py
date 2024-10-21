@@ -151,7 +151,7 @@ class FocalLoss(torch.nn.Module):
         loss = (1 - p) ** self.gamma * logp
         return loss.mean()
     
-def load_checkpoint(model_class: torch.nn.Module, path: str, pretrain: bool = False):
+def load_checkpoint(model_class: torch.nn.Module, path: str, pretrain: bool = False, freeze: bool = False):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=FutureWarning)
         checkpoint = torch.load(path)
@@ -166,6 +166,14 @@ def load_checkpoint(model_class: torch.nn.Module, path: str, pretrain: bool = Fa
         pretrained_dict = {k: v for k, v in checkpoint['state_dict'].items() if k in model_dict}
         model_dict.update(pretrained_dict)
         model.load_state_dict(model_dict)
+        
+        if freeze:
+            # Congelar input_layer e body
+            for param in model.input_layer.parameters():
+                param.requires_grad = False
+
+            for param in model.body.parameters():
+                param.requires_grad = False
         
     return model
 
@@ -195,5 +203,6 @@ def parse_args():
     parser.add_argument('--warmup_lr', type=float, default=2.5e-2, help="Taxa de aprendizado inicial para warmup (default: 2.5e-2)")
     parser.add_argument('--pretrain', action='store_true', help='Se está rodando em modo de pré-treino (default: False)')
     parser.add_argument('--restore_path', type=str, default=None, help='Caminho para o checkpoint a ser restaurado (default: None)')
+    parser.add_argument('--freeze', action='store_true', help='Se deve congelar as camadas de input_layer e body (default: False)')
         
     return parser.parse_args()
